@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event attendance</title>
+<style>
+  :root {
+    --ink: #1b2a41;
+    --paper: #f6f7f9;
+    --card: #ffffff;
+    --line: #d5dbe3;
+    --muted: #5b6878;
+    --accent: #1f5eff;
+    --ok: #137a4b;
+    --warn: #a15c00;
+    --err: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+
+  .loc {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); margin-bottom: 20px; font-size: .95rem;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; flex: none; background: var(--muted); }
+  .loc.pending .dot { background: var(--warn); }
+  .loc.ok .dot { background: var(--ok); }
+  .loc.fail .dot { background: var(--err); }
+  .loc button { margin-left: auto; font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
+  .loc[hidden] button { display: none; }
+
+  fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 18px 16px 6px; margin: 0 0 20px; }
+  legend { font-weight: 700; padding: 0 6px; font-size: 1.05rem; }
+  .hint { color: var(--muted); font-size: .9rem; margin: -4px 0 14px; }
+  .field { margin-bottom: 14px; }
+  label { display: block; font-weight: 600; margin-bottom: 4px; font-size: .95rem; }
+  .req::after { content: " *"; color: var(--err); }
+  input, select {
+    width: 100%; font: inherit; padding: 10px 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  input:focus, select:focus, button:focus-visible { outline: 3px solid rgba(31,94,255,.35); outline-offset: 1px; border-color: var(--accent); }
+  .field.invalid input, .field.invalid select { border-color: var(--err); }
+  .err { color: var(--err); font-size: .85rem; margin-top: 3px; min-height: 0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 440px) { .row { grid-template-columns: 1fr; } }
+
+  .submit {
+    width: 100%; padding: 13px; font: inherit; font-weight: 700; font-size: 1.05rem;
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px; cursor: pointer;
+  }
+  .submit:disabled { opacity: .55; cursor: not-allowed; }
+  .banner { padding: 12px 14px; border-radius: 8px; margin-top: 16px; display: none; }
+  .banner.ok { display: block; background: #e4f5ec; color: var(--ok); border: 1px solid #b6e0c8; }
+  .banner.fail { display: block; background: #fdeceb; color: var(--err); border: 1px solid #f3c1be; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Event attendance</h1>
+  <p class="sub">Fill in your details to mark yourself present.</p>
+
+  <div id="loc" class="loc pending" role="status" aria-live="polite">
+    <span class="dot"></span>
+    <span id="locText">Requesting your location…</span>
+    <button type="button" id="retry" hidden>Try again</button>
+  </div>
+
+  <form id="form" novalidate>
+    <fieldset>
+      <legend>Your details</legend>
+      <div class="field"><label class="req" for="name">Full name</label>
+        <input id="name" name="name" autocomplete="name" required><div class="err"></div></div>
+      <div class="field"><label class="req" for="prn">PRN no.</label>
+        <input id="prn" name="prn" autocapitalize="characters" required><div class="err"></div></div>
+      <div class="field"><label class="req" for="department">Department</label>
+        <input id="department" name="department" required><div class="err"></div></div>
+      <div class="row">
+        <div class="field"><label class="req" for="year">Year of study</label>
+          <select id="year" name="year" required>
+            <option value="">Select</option>
+            <option value="FY">First year</option>
+            <option value="SY">Second year</option>
+            <option value="TY">Third year</option>
+            <option value="BTech">Final year</option>
+          </select><div class="err"></div></div>
+        <div class="field"><label class="req" for="phone">Phone number</label>
+          <input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile" required><div class="err"></div></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Leaving a lecture to attend?</legend>
+      <p class="hint">Skip this section if you have no class right now. Otherwise fill in the class you are leaving.</p>
+      <div class="row">
+        <div class="field"><label for="rollNo">Roll no.</label><input id="rollNo" name="rollNo"></div>
+        <div class="field"><label for="batch">Batch</label><input id="batch" name="batch"></div>
+      </div>
+      <div class="field"><label for="facultyName">Faculty name (class in progress)</label><input id="facultyName" name="facultyName"></div>
+      <div class="field"><label for="subject">Subject (class in progress)</label><input id="subject" name="subject"></div>
+    </fieldset>
+
+    <button class="submit" id="submitBtn" type="submit" disabled>Mark attendance</button>
+    <div id="banner" class="banner" role="alert"></div>
+  </form>
+</main>
+
+<script>
+(function () {
+  const form = document.getElementById('form');
+  const btn = document.getElementById('submitBtn');
+  const banner = document.getElementById('banner');
+  const locBox = document.getElementById('loc');
+  const locText = document.getElementById('locText');
+  const retry = document.getElementById('retry');
+  let coords = null;
+
+  function setLoc(state, text, showRetry) {
+    locBox.className = 'loc ' + state;
+    locText.textContent = text;
+    retry.hidden = !showRetry;
+    btn.disabled = state !== 'ok';
+  }
+
+  function getLocation() {
+    coords = null;
+    if (!('geolocation' in navigator)) {
+      return setLoc('fail', 'This browser does not support location. Open the page in Chrome or Safari.', false);
+    }
+    setLoc('pending', 'Requesting your location… tap Allow when asked.', false);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        coords = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        setLoc('ok', 'Location captured (accuracy about ' + Math.round(pos.coords.accuracy) + ' m).', false);
+      },
+      (err) => {
+        const msg = {
+          1: 'Location permission denied. Enable it in your browser settings, then try again.',
+          2: 'Could not determine your location. Check GPS or network and try again.',
+          3: 'Location request timed out. Try again.'
+        }[err.code] || 'Could not get your location.';
+        setLoc('fail', msg, true);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+  retry.addEventListener('click', getLocation);
+  getLocation(); // on page load
+
+  function showErrors(errors) {
+    form.querySelectorAll('.field').forEach(f => { f.classList.remove('invalid'); const e = f.querySelector('.err'); if (e) e.textContent = ''; });
+    Object.entries(errors || {}).forEach(([key, msg]) => {
+      const input = form.elements[key];
+      if (!input) return;
+      const f = input.closest('.field');
+      f.classList.add('invalid');
+      f.querySelector('.err').textContent = msg;
+    });
+  }
+
+  function validateClient() {
+    const v = n => form.elements[n].value.trim();
+    const errors = {};
+    if (v('name').length < 2) errors.name = 'Enter your full name.';
+    if (!/^[A-Za-z0-9]{5,20}$/.test(v('prn'))) errors.prn = 'Enter a valid PRN (letters and digits only).';
+    if (!v('department')) errors.department = 'Enter your department.';
+    if (!v('year')) errors.year = 'Select your year of study.';
+    if (!/^(\+91)?[6-9]\d{9}$/.test(v('phone').replace(/[\s-]/g, ''))) errors.phone = 'Enter a valid 10-digit mobile number.';
+    return errors;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    banner.className = 'banner';
+    const errors = validateClient();
+    showErrors(errors);
+    if (Object.keys(errors).length) {
+      const first = form.querySelector('.invalid input, .invalid select');
+      if (first) first.focus();
+      return;
+    }
+    if (!coords) return;
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.location = coords;
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+    try {
+      const res = await fetch('/api/event-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const out = await res.json().catch(() => ({}));
+      if (res.ok && out.success) {
+        banner.className = 'banner ok';
+        banner.textContent = out.message || 'Attendance recorded.';
+        form.querySelectorAll('input, select').forEach(i => i.disabled = true);
+        btn.textContent = 'Attendance marked';
+        return;
+      }
+      showErrors(out.errors);
+      banner.className = 'banner fail';
+      banner.textContent = (out.errors && out.errors.location) || out.message || 'Something went wrong. Try again.';
+    } catch (err) {
+      banner.className = 'banner fail';
+      banner.textContent = 'Network error. Check your connection and try again.';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Mark attendance';
+  });
+})();
+</script>
+</body>
+</html>
